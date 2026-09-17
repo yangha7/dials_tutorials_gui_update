@@ -6,6 +6,8 @@ DIALS data processing may be run by automated tools such as `xia2` or interactiv
 
 This tutorial deviates slightly from the mainstream by _starting_ with data from a number of crystals, first from a single sample type and then from a mixture, which will show you how to classify data with subtle differences (e.g. presence or absence of a ligand.)
 
+The first pass (cows only) is run from the command line, so you can see exactly what each program is doing. The second pass, [Cows, Pigs and People](#cows-pigs-and-people), repeats the same steps on all 36 data sets using the **DIALS Workflow GUI** introduced in the [workflow tutorial](./WORKFLOW.md) - the GUI runs the same programs and writes the same files, so you can mix and match as you prefer.
+
 ## The Data
 
 [The data](https://zenodo.org/records/13890874) (~6GB) were taken on i24 at Diamond Light Source as part of routine commissioning work, with a number of small rotation data sets recorded from different crystals. Crystals were prepared of the protein insulin from cows, pigs and people (as described on the Zenodo deposition; bovine, porcine and human insulin, of course all grown in e-coli anyway).
@@ -377,18 +379,57 @@ Going back to the instructions above, we carefully imported just the `CIX` data 
 dials.import ../data/CIX*gz
 ```
 
-This time around, we will be importing _all_ the data and proceeding as before as far as the `dials.cosym` step. As a reminder:
+This time around, we will be importing _all_ the data and proceeding as before as far as the `dials.cosym` step - but using the DIALS Workflow GUI rather than typing the commands. Launch the GUI and set the **Working directory** to a fresh, empty directory (here `CCP_GUI`) so the new run does not overwrite the cows-only processing. The steps are the same six programs as before; the command the GUI is about to run is always shown in blue, so you can compare with the command-line version at every stage.
 
-```
-dials.import ../data/*gz
-dials.find_spots imported.expt
-dials.index imported.expt strong.refl joint=False
-dials.refine indexed.expt indexed.refl
-dials.integrate refined.expt refined.refl
-dials.cosym integrated.expt integrated.refl
-```
+### Import
 
-At this point we have found a common symmetry and indexing setting, and derived an average unit cell:
+Click **1. Import**, then **Browse files...**, navigate to the data directory and select _all_ of the `.cbf.gz` images from all 36 crystals (click the first, shift-click the last, or Ctrl-A). Alternatively **Add glob pattern...** with `../data/*gz` does the same thing in one line.
+
+![Selecting all the images](./images/cpp-import-file-dialog.png)
+
+The file list fills up with the selected images - the command preview under it is now very long, which is exactly why `dials.import ../data/*gz` is the usual way to do this from a terminal. Leave the image range blank and click **Run dials.import**.
+
+![Import setup with all images](./images/cpp-import-setup.png)
+
+Reading the headers of 3600 images takes a couple of minutes; progress is shown in **Live Output**. The end of the output should list 36 templates and `sweep: 36`.
+
+![Import progress](./images/cpp-import-live-output.png)
+
+### Find Spots
+
+Click **2. Find Spots**. The experiment file is already `imported.expt`; click **Run dials.find_spots**.
+
+![Find spots setup](./images/cpp-find-spots-setup.png)
+
+As before you get a per-image histogram for each of the 36 imagesets, and this time around 268,000 strong reflections in total:
+
+![Find spots output](./images/cpp-find-spots-output.png)
+
+### Index
+
+Click **4. Index**. This is the one step where the multi-crystal case differs from the single-crystal workflow: we must tell the program that the crystals _do not_ share an orientation matrix. Tick **multi-crystal (joint=false)** - or, equivalently, type `joint=False` into the **Additional parameters** box as in the screenshot - and check that the command reads `dials.index imported.expt strong.refl joint=False`. Then click **Run dials.index**.
+
+![Index setup with joint=False](./images/cpp-index-setup.png)
+
+The output shows each imageset being indexed in turn (`Indexing imageset id 17 (18/36)` and so on), each with its own unit cell, all of which should again be variations on 67 Å / 109°:
+
+![Index output](./images/cpp-index-output.png)
+
+### Refine and Integrate
+
+Click **6. Refine** and **Run dials.refine**, then **7. Integrate** and **Run dials.integrate** - in both cases the input files are filled in from the previous step and no parameters need changing. Integration of 36 sweeps will take a little while.
+
+![Refine setup](./images/cpp-refine-setup.png)
+
+![Integrate setup](./images/cpp-integrate-setup.png)
+
+### Cosym
+
+Skip **8. Symmetry (single crystal)** - that is `dials.symmetry`, for one crystal. Click **8b. Cosym (multi-crystal)** instead; the inputs default to `integrated.expt` / `integrated.refl`. Click **Run dials.cosym (optional)**.
+
+![Cosym setup](./images/cpp-cosym-setup.png)
+
+At this point we have found a common symmetry and indexing setting, and derived an average unit cell (this is the end of the `dials.cosym` output in the **Live Output** tab):
 
 ```
 Best solution: I m -3
@@ -401,19 +442,19 @@ Reindexing operators:
 x,y,z: [0, 1, 4, 6, 7, 8, 9, 12, 17, 23, 24, 25, 26, 28, 29, 30, 31, 32, 33]
 ```
 
-however at this stage we can also start looking at the isomorphism analysis performed by cosym, by looking at `dials.cosym.html` - this includes some measure of unit cell isomorphism, but from the dendrogram you can see it does not cleanly split into three categories:
+however at this stage we can also start looking at the isomorphism analysis performed by cosym, by looking at `dials.cosym.html` (the **Open HTML in web browser** button, or the **Plots** tab) - this includes some measure of unit cell isomorphism, but from the dendrogram you can see it does not cleanly split into three categories:
 
 ![Unit cell dendrogram](./images/unit-cell-dendro.png)
 
-Scaling the data is "succcessful" in that you get results, but the merging stats are pretty poor. Looking at the logs you can see the data split (not shown) but it is not obvious unless you know in advance that there are different crystals here. Take a look at `dials.scale.html` and look at the merging statistics as a function of image / batch number.
+Scaling the data (**9. Scale**) is "succcessful" in that you get results, but the merging stats are pretty poor. Looking at the logs you can see the data split (not shown) but it is not obvious unless you know in advance that there are different crystals here. Take a look at `dials.scale.html` and look at the merging statistics as a function of image / batch number.
 
-We can however see the different groups if we run `dials.correlation_matrix` - a new tool to run after cosym which helps to look for different isomorphism classes. This is rather more helpful: using the correlation coefficients to define distances, then using the OPTICS algorithm to define clusters.
+### Correlation Matrix
 
-```
-dials.correlation_matrix symmetrized.expt symmetrized.refl
-```
+We can however see the different groups if we run `dials.correlation_matrix` - a new tool to run after cosym which helps to look for different isomorphism classes. This is rather more helpful: using the correlation coefficients to define distances, then using the OPTICS algorithm to define clusters. Click **8c. Correlation Matrix (multi-crystal)**. The inputs default to `symmetrized.expt` / `symmetrized.refl`, and **output clusters** is ticked by default, which adds `significant_clusters.output=True` to the command so that the clusters are written out as separate files (see below). Click **Run dials.correlation_matrix (optional)**.
 
-Will recommend clusters:
+![Correlation matrix setup](./images/cpp-correlation-matrix-setup.png)
+
+This will recommend clusters:
 
 ```
 Cluster 0
@@ -437,7 +478,11 @@ but more usefully shows the lattice separation superbly on a pairwise correlatio
 
 ![Correlation matrix](./images/block-matrix.png)
 
-Here you can clearly see the three clusters. If `significant_clusters.output=True` is added to the command line, the program will split the data according to the clusters for further analysis:
+Here you can clearly see the three clusters. The GUI's **Plots** tab pulls the same graphs out of `dials.correlation_matrix.html` - the correlation and cos(angle) matrices, the OPTICS reachability plot coloured by cluster, and the cosym coordinates - and here the three-way split is unmistakable:
+
+![Correlation matrix plots in the GUI](./images/cpp-correlation-matrix-plots.png)
+
+Because **output clusters** was ticked (`significant_clusters.output=True` on the command line), the program has also split the data according to the clusters for further analysis:
 
 ```
 -rw-r--r--   1 graeme  staff     528939 14 Oct 14:19 cluster_0.expt
@@ -448,7 +493,7 @@ Here you can clearly see the three clusters. If `significant_clusters.output=Tru
 -rw-r--r--   1 graeme  staff  151291087 14 Oct 14:19 cluster_2.refl
 ```
 
-These can be scaled as above, e.g. by making a directory for each. The algorithm may leave outlier data sets from inclusion in any cluster, so it is possible only one cluster appears as a result. In this case I merged each cluster separately with:
+These can be scaled as above. In the GUI, go to **9. Scale** and pick each cluster in turn from the **Cluster to scale** drop-down - each run writes its own `scaled_cluster_N.expt` / `scaled_cluster_N.refl` and `dials.scale.cluster_N.html`, so nothing is overwritten. The algorithm may leave outlier data sets from inclusion in any cluster, so it is possible only one cluster appears as a result. From the command line the equivalent is to make a directory for each; in this case I merged each cluster separately with:
 
 ```
 mkdir 0 1 2
