@@ -2,17 +2,17 @@
 
 ## Introduction
 
-DIALS data processing may be run by automated tools such as `xia2` or interactively on the command line. For a tutorial it is more useful to use the latter, to explain the opportunities afforded by the software. In any data processing package the workflow requires reading data, finding spots, indexing to get an orientation matrix, refinement, integration and then scaling / correction: DIALS is no different.
+DIALS data processing may be run by automated tools such as `xia2`, interactively on the command line, or - as in this tutorial - through the **DIALS Workflow GUI**, which drives the same command-line programs from a set of panels. For a tutorial it is more useful to run the steps one at a time, to explain the opportunities afforded by the software. In any data processing package the workflow requires reading data, finding spots, indexing to get an orientation matrix, refinement, integration and then scaling / correction: DIALS is no different.
 
 This tutorial deviates slightly from the mainstream by _starting_ with data from a number of crystals, first from a single sample type and then from a mixture, which will show you how to classify data with subtle differences (e.g. presence or absence of a ligand.)
 
-The first pass (cows only) is run from the command line, so you can see exactly what each program is doing. The second pass, [Cows, Pigs and People](#cows-pigs-and-people), repeats the same steps on all 36 data sets using the **DIALS Workflow GUI** introduced in the [workflow tutorial](./WORKFLOW.md) - the GUI runs the same programs and writes the same files, so you can mix and match as you prefer.
+Throughout, the GUI shows the command it is about to run in blue under **Command** - this is exactly what you would type in a terminal, so the [original command-line version of this tutorial](../ccp4-dls-2024/COWS_PIGS_PEOPLE.md) can be followed side by side. The GUI itself is introduced in the [workflow tutorial](./WORKFLOW.md), which is worth reading first if you have not used it before.
 
 ## The Data
 
 [The data](https://zenodo.org/records/13890874) (~6GB) were taken on i24 at Diamond Light Source as part of routine commissioning work, with a number of small rotation data sets recorded from different crystals. Crystals were prepared of the protein insulin from cows, pigs and people (as described on the Zenodo deposition; bovine, porcine and human insulin, of course all grown in e-coli anyway).
 
-All data have symmetry I213 and very similar unit cell constants so you can _try_ to merge them together and it will work, but won't give you good results as you will be measuring a mixture of structures. The data on the deposition are in `tar` archives so I am assuming you have already downloaded them all and unpacked them into `../data`: if you have done something different you will need to take a little care at the `dials.import` stage.
+All data have symmetry I213 and very similar unit cell constants so you can _try_ to merge them together and it will work, but won't give you good results as you will be measuring a mixture of structures. The data on the deposition are in `tar` archives so I am assuming you have already downloaded them all and unpacked them into `../data`: if you have done something different you will need to take a little care at the import stage.
 
 If you are at the workshop in real life, the data are already in:
 
@@ -38,52 +38,50 @@ done
 
 The [workflow](./WORKFLOW.md) is the same with one data set as with many, with some small deviations - data from multiple crystals will not in general share an orientation matrix so the indexing will need to _not_ join all the lattices.
 
-As mentioned above the flow is to read the data, find spots, index, refine, integrate and then derive some corrections from symmetry related reflections, which involves assigning the symmetry. In DIALS we use the following tools:
+As mentioned above the flow is to read the data, find spots, index, refine, integrate and then derive some corrections from symmetry related reflections, which involves assigning the symmetry. In DIALS we use the following tools, each of which has a numbered step in the GUI's **Pipeline steps** list:
 
-- `dials.import` - read all the image headers to make sense of the metadata
-- `dials.find_spots` - find the spots - with DIALS we find spots across the whole data set and one spot across multiple images is "found" in 3D
-- `dials.index` - assign indices to the spots and derive unit cell, symmetry
-- `dials.refine` - improve the models from indexing (separate as allows "wobbles")
-- `dials.integrate` - measure the background subtracted spot intensity
-- `dials.symmetry` - derive the Patterson symmetry of the crystal from the data
-- `dials.scale` - correct the data for sample decay, overall scale from beam or illuminated volume and absorption
-- `dials.export` - output processed data for e.g. use in CCP4 or PHENIX
+- `dials.import` (**1. Import**) - read all the image headers to make sense of the metadata
+- `dials.find_spots` (**2. Find Spots**) - find the spots - with DIALS we find spots across the whole data set and one spot across multiple images is "found" in 3D
+- `dials.index` (**4. Index**) - assign indices to the spots and derive unit cell, symmetry
+- `dials.refine` (**6. Refine**) - improve the models from indexing (separate as allows "wobbles")
+- `dials.integrate` (**7. Integrate**) - measure the background subtracted spot intensity
+- `dials.symmetry` (**8. Symmetry**) - derive the Patterson symmetry of the crystal from the data
+- `dials.scale` (**9. Scale**) - correct the data for sample decay, overall scale from beam or illuminated volume and absorption
+- `dials.export` (**10. Merge / Export**) - output processed data for e.g. use in CCP4 or PHENIX
 
-With multiple sweeps from a single crystal, we can assign a single orientation matrix and then use this throughout the processing (the default) - however if you have data from multiple crystals some of the assumptions will break down so we need to (i) tell the software that the crystals _do not_ share a matrix and in the symmetry determination also resolve any indexing ambiguity: we therefore replace `dials.symmetry` with `dials.cosym`.
+With multiple sweeps from a single crystal, we can assign a single orientation matrix and then use this throughout the processing (the default) - however if you have data from multiple crystals some of the assumptions will break down so we need to (i) tell the software that the crystals _do not_ share a matrix and in the symmetry determination also resolve any indexing ambiguity: we therefore replace `dials.symmetry` with `dials.cosym` (**8b. Cosym**).
+
+Launch the GUI and set the **Working directory** to a new, empty directory (here `Cows_only_GUI`) - all the output files below will be written there.
 
 ## Import
 
-The data are in `../data`: for the first pass through this tutorial we will just process the "cow" data `CIX...` to keep things simple. There are data from 12 crystals in here and if we simply import every frame, `dials.import` will make sense of what it finds:
+The data are in `../data`: for the first pass through this tutorial we will just process the "cow" data `CIX...` to keep things simple. There are data from 12 crystals in here. Click **1. Import** then **Browse files...**, navigate to the data directory and select all of the `CIX*.cbf.gz` images (click the first `CIX` file, then shift-click the last one - the `PIX` and `X` files below should stay unselected). Alternatively, **Add glob pattern...** with `../data/CIX*gz` does the same thing in one line, and is what you would type on the command line.
+
+![Selecting the CIX images](./images/cow-import-file-dialog.png)
+
+The 1200 selected files appear in the list (and in the very long command preview underneath). Leave the image range blank and click **Run dials.import** - `dials.import` will make sense of what it finds:
+
+![Import setup](./images/cow-import-setup.png)
+
+Reading 1200 image headers takes a minute or so, and at the end of the **Live Output** you get:
+
+![Import output](./images/cow-import-output.png)
 
 ```
-dials.import ../data/CIX*gz
-```
-
-to get:
-
-```
-DIALS (2018) Acta Cryst. D74, 85-97. https://doi.org/10.1107/S2059798317017235
-DIALS 3.dev.1184-gb491c224e
-The following parameters have been modified:
-
-input {
-  experiments = <image files>
-}
-
 --------------------------------------------------------------------------------
   format: <class 'dxtbx.format.FormatCBFFullPilatus.FormatCBFFullPilatus'>
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX1_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX2_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX3_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX5_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX6_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX8_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX9_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX10_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX11_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX12_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX14_1_#####.cbf.gz:1:100
-  template: /Users/graeme/data/ccp4-aps-tutorials/cix/data/CIX15_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX1_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX2_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX3_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX5_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX6_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX8_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX9_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX10_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX11_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX12_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX14_1_#####.cbf.gz:1:100
+  template: /shared/home/yangha/data/Insulin/CIX15_1_#####.cbf.gz:1:100
   num images: 1200
   sequences:
     still:    0
@@ -93,35 +91,33 @@ input {
 Writing experiments to imported.expt
 ```
 
-This shows the filename patterns, how many images for each and the total it found - 12 sweeps each of 100 images. We can get much more detail on this with `dials.show` which can print the "DIALS understanding" of what the data look like. There are ways to streamline this for very large numbers of images, but for now this is fine.
+This shows the filename patterns, how many images for each and the total it found - 12 sweeps each of 100 images. We can get much more detail on this with the **dials.show** button under **Viewing tools**, which can print the "DIALS understanding" of what the data look like. There are ways to streamline this for very large numbers of images, but for now this is fine.
 
 At this point: scan the output - do you have what you expected? Many problems with DIALS processing can be solved here.
 
 ## Spot Finding
 
-Spot finding is exactly what it sounds like: finding where all the spots are in the data sets. In DIALS spots in the same place on adjacent images are considered to be joined so the spot is a three dimensional object. You can explore the spot finding by opening the images in `dials.image_viewer` with
+Spot finding is exactly what it sounds like: finding where all the spots are in the data sets. In DIALS spots in the same place on adjacent images are considered to be joined so the spot is a three dimensional object. You can explore the spot finding by opening the images in the image viewer: click **dials.image_viewer** under **Viewing tools**, give it `imported.expt` and leave the reflection file blank, then **Launch**.
 
-```
-dials.image_viewer imported.expt
-```
+![Image viewer on the raw images](./images/cow-image-viewer.png)
 
-and then clicking through the options at the bottom of the control window (I will demo this in real life, and make a video, but you can click through the steps to "threshold" which is the set of pixels the spot fiding will pick out). The spot finding:
+Then click through the options at the bottom of the Settings window (I will demo this in real life, and make a video, but you can click through the steps to "threshold" which is the set of pixels the spot finding will pick out). The spot finding itself is **2. Find Spots**: the experiment file is already `imported.expt`, so click **Run dials.find_spots**.
 
-```
-dials.find_spots imported.expt
-```
+![Find spots setup](./images/cow-find-spots-setup.png)
 
-will give a summary of the number of signal pixels on every image, the number of found spots on each run and at the end a histogram of the distribution of spots across the images on each run, as:
+This will give a summary of the number of signal pixels on every image, the number of found spots on each run and at the end a histogram of the distribution of spots across the images on each run, as:
+
+![Find spots output](./images/cow-find-spots-output.png)
 
 ```
 Histogram of per-image spot count for imageset 10:
-7446 spots found on 100 images (max 231 / bin)
+7722 spots found on 100 images (max 238 / bin)
 *                                                          *
 *                                                          *
 *                                                          *
 *                                                          *
-** *    *   **   *          *  **     *  * * *  *    *     *
-*************************** * *** *** ** ********** ********
+** *    **  ** * *     * *  * *       * * * * *     *      *
+*************************** ******* ** *** ****** ********
 ************************************************************
 ************************************************************
 ************************************************************
@@ -129,12 +125,12 @@ Histogram of per-image spot count for imageset 10:
 1                         image                          100
 
 Histogram of per-image spot count for imageset 11:
-7370 spots found on 100 images (max 209 / bin)
+7634 spots found on 100 images (max 219 / bin)
 *                                                           
 *                                                          *
 *                                                          *
-* *     *                                             *    *
-**** * ***  **  ***  *** *********   * * ******* * *  *** **
+* *     *                                             *  **
+**** * *** *** ***   ********* *    * * ********** * *** **
 ********************************** *************************
 ************************************************************
 ************************************************************
@@ -143,57 +139,38 @@ Histogram of per-image spot count for imageset 11:
 1                         image                          100
 
 --------------------------------------------------------------------------------
-Saved 80603 reflections to strong.refl
+Saved 83557 reflections to strong.refl
 ```
 
-You can also look at the spot finding result in the image viewer with
+You can also look at the spot finding result in the image viewer - **dials.image_viewer** again, this time with `strong.refl` in the reflection file box - which should look like:
 
-
-```
-dials.image_viewer imported.expt strong.refl
-```
-
-which should look like:
-
-![Image with spots](../ccp4-dls-2024/images/spots.png)
+![Image with spots](./images/cow-image-viewer-spots.png)
 
 More details about the image viewer can be found [here](../ccp4-dls-2024/image_viewer.md). Now that we have found the spots we can start to consider some initial analysis - for example, looking at the distribution of the spots in reciprocal space. For a single scan we will see a single lattice, but in this case we will see the same 10° wedge many times, because right now we don't know anything about the reciprocal space orientation. You can pick out one lattice and rotate it, to see the actual reciprocal space orientations. You may want to run this in full-screen to see the options e.g. to select individual runs.
 
-Open the reciprocal lattice view with:
+Open the reciprocal lattice view by clicking **dials.reciprocal_lattice_viewer** under **Viewing tools** with `imported.expt` and `strong.refl`, which should look a little like this:
 
-```
-dials.reciprocal_lattice_viewer imported.expt strong.refl
-```
-
-which should look a little like this:
-
-![Reciprocal view](../ccp4-dls-2024/images/rlv0.png)
+![Reciprocal view](./images/cow-rlv-strong.png)
 
 ## Indexing and Refinement
 
-If you played with the lattice viewer in the previous step you will have seen some nice lattices. The computational approach to finding them is to use `dials.index`: you pass the experiments and the spots and it will puzzle everything out. Here, we have multiple lattices so we need to tell the program that:
+If you played with the lattice viewer in the previous step you will have seen some nice lattices. The computational approach to finding them is `dials.index`: you pass the experiments and the spots and it will puzzle everything out. Here, we have multiple lattices so we need to tell the program that: click **4. Index**, tick **multi-crystal (joint=false)** - or type `joint=false` into **Additional parameters**, as in the screenshot - and check that the command reads `dials.index imported.expt strong.refl joint=false`. Then click **Run dials.index**.
 
-```
-dials.index imported.expt strong.refl joint=false
-```
+![Index setup](./images/cow-index-setup.png)
 
-This will go through and assign a lattice for each run. You can best look at what it has done by again using the reciprocal lattice viewer and this time passing the output:
+This will go through and assign a lattice for each run - in the **Live Output** you will see `Indexing imageset id 6 (7/12)` and so on, each with its own unit cell and a `% indexed` table:
 
-```
-dials.reciprocal_lattice_viewer indexed.expt indexed.refl
-```
+![Index output](./images/cow-index-output.png)
 
-If you select "show in crystal frame" you can see how the lattices _may_ align in reciprocal space - at this point we don't have a true understanding of the symmetry, only the unit cell, but already you can check for things like preferred orientation. With these data, the distribution looks like:
+You can best look at what it has done by again using the reciprocal lattice viewer and this time passing the output, `indexed.expt` and `indexed.refl`. If you select **Show in crystal frame** (and **Show reciprocal cell**) you can see how the lattices _may_ align in reciprocal space - at this point we don't have a true understanding of the symmetry, only the unit cell, but already you can check for things like preferred orientation. With these data, the distribution looks like:
 
-![Reciprocal view](../ccp4-dls-2024/images/rlv1.png)
+![Reciprocal view](./images/cow-rlv-indexed.png)
 
-i.e. there is no evidence of preferential orientation. Obviously at this point we would hope that the data have a consistent unit cell - you can look at this by switching on the unit cell view in the reciprocal lattice viewer, or by running `dials.show` and checking the unit cells:
+i.e. there is no evidence of preferential orientation. The same view is also available in a browser-based reciprocal lattice viewer, which needs no local DIALS installation and can be shared as a link - the indexed cows data are at [yangha7.github.io/VR_DIALS](https://yangha7.github.io/VR_DIALS/ReciprocalLatticeViewerHeadless.html?dataset=round1), with the same crystal-frame and reciprocal-cell options in the panel on the left and one colour per crystal:
 
-```
-dials.show indexed.expt | grep "Unit cell"
-```
+![Web reciprocal lattice viewer](./images/cow-web-rlv.png)
 
-should look like:
+Obviously at this point we would hope that the data have a consistent unit cell - you can look at this by switching on the unit cell view in the reciprocal lattice viewer, or by clicking **dials.show** on `indexed.expt` and scanning the output for the `Unit cell:` lines (on the command line you would pipe this through `grep "Unit cell"`), which should look like:
 
 ```
     Unit cell: 67.459(10), 67.524(8), 67.498(7), 109.470(2), 109.519(4), 109.401(4)
@@ -210,15 +187,17 @@ should look like:
     Unit cell: 67.404(11), 67.421(6), 67.419(7), 109.449(2), 109.479(5), 109.474(5)
 ```
 
-Here we can see they are all variations on a theme of 67Å / 109° x 3 - what I would expect for cubic insulin. If there are outliers you can re-run with the known cell as a prior, as
+Here we can see they are all variations on a theme of 67Å / 109° x 3 - what I would expect for cubic insulin. If there are outliers you can re-run indexing with the known cell as a prior, by typing `67,67,67,109,109,109` into the **unit_cell** field on the Index panel (equivalent to `unit_cell=67,67,67,109,109,109` on the command line) to give consistency: this is not necessary here.
 
-```
-dials.index imported.expt strong.refl joint=false unit_cell=67,67,67,109,109,109
-```
+After indexing, we can refine the models used to describe the data - this allows for e.g. variations in the unit cell parameters or small amounts of movement of the crystal with respect to the goniometer. Click **6. Refine** - the inputs default to `indexed.expt` / `indexed.refl` - and **Run dials.refine**.
 
-to give consistency: this is not necessary here.
+![Refine setup](./images/cow-refine-setup.png)
 
-After indexing, we can refine the models used to describe the data - this allows for e.g. variations in the unit cell parameters or small amounts of movement of the crystal with respect to the goniometer. The refinement will improve the alignment between where the spots are observed to be and where they are calculated to be from the current models, which ideally should be substantially under a pixel e.g.
+The refinement will improve the alignment between where the spots are observed to be and where they are calculated to be from the current models, which ideally should be substantially under a pixel. Each experiment is refined in turn, so the **Live Output** shows an `RMSDs by experiment` table for each:
+
+![Refine output](./images/cow-refine-output.png)
+
+Collected together (as they appear on the command line) the final RMSDs look like:
 
 ```
 RMSDs by experiment:
@@ -252,27 +231,23 @@ Given a refined model, we need to now compute the locations of all the spots on 
 - gathering of the spot to compute a reciprocal space "average" spot shape
 - scaling this against the observed spots on the images
 
-For education, these steps can be run somewhat independently (e.g. using `dials.create_profile_model` and `dials.predict`) which can allow inspection of what the models are _before_ attempting integration, which can be useful for investigating problematic data sets. Actual integration is run with:
+For education, these steps can be run somewhat independently (e.g. using `dials.create_profile_model` and `dials.predict`) which can allow inspection of what the models are _before_ attempting integration, which can be useful for investigating problematic data sets. Actual integration is **7. Integrate**: the inputs default to `refined.expt` / `refined.refl`, so click **Run dials.integrate**.
 
-```
-dials.integrate refined.expt refined.refl
-```
+![Integrate setup](./images/cow-integrate-setup.png)
 
-Which will take some time. Viewing the results of integration can be reassuring, but is generally not necessary (use `dials.image_viewer integrated.expt integrated.refl`):
+Which will take some time (about 15 minutes on 8 cores here - the progress and the per-block reflection counts scroll past in **Live Output**). Viewing the results of integration can be reassuring, but is generally not necessary (use **dials.image_viewer** with `integrated.expt` and `integrated.refl`):
 
-![Integrated images](../ccp4-dls-2024/images/integ.png)
+![Integrated images](./images/cow-image-viewer-integrated.png)
 
 This step can be computationally challenging for substantial data sets but for this set it should be pretty quick.
 
 ## Symmetry Determination and Scaling
 
-Up to now all of the processing has ignored the crystal symmetry, working with a triclinic cell. For scaling the symmetry relationships between reflections are needed. For a single sweep data set, `dials.symmetry` will determine the Patterson symmetry and frequently the correct space group. In this case we have 12 data sets which are individually rather incomplete, and we know there is some indexing ambiguity i.e. the lattice symmetry is higher than the rotational symmetry of the data.
+Up to now all of the processing has ignored the crystal symmetry, working with a triclinic cell. For scaling the symmetry relationships between reflections are needed. For a single sweep data set, `dials.symmetry` (**8. Symmetry (single crystal)**) will determine the Patterson symmetry and frequently the correct space group. In this case we have 12 data sets which are individually rather incomplete, and we know there is some indexing ambiguity i.e. the lattice symmetry is higher than the rotational symmetry of the data.
 
-For this tutorial we have 12 data sets, so we will use `dials.cosym` to derive the symmetry and resolve indexing ambiguity simultaneously:
+For this tutorial we have 12 data sets, so we will use `dials.cosym` to derive the symmetry and resolve indexing ambiguity simultaneously: skip step 8 and click **8b. Cosym (multi-crystal)** instead. The inputs default to `integrated.expt` / `integrated.refl`; click **Run dials.cosym (optional)**.
 
-```
-dials.cosym integrated.expt integrated.refl
-```
+![Cosym setup](./images/cow-cosym-setup.png)
 
 This will first try and align the lattices in reciprocal space, then estimates the crystal symmetry based on the alignment: in this case identifying the Patterson symmetry `I m -3` with close to half-half split across the "twin" operation:
 
@@ -287,71 +262,65 @@ x,y,z: [2, 3, 5, 10, 11]
 -x+y,y,y-z: [0, 1, 4, 6, 7, 8, 9]
 ```
 
-In many cases there will be no indexing ambiguity, so there will only be one reindexing operation. After deriving the symmetry the data can be placed onto a common scale with `dials.scale`: this adjusts the scale factors to accomodate:
+In many cases there will be no indexing ambiguity, so there will only be one reindexing operation. The two groups are very visible in the **Plots** tab, which pulls the graphs out of `dials.cosym.html`: the cosym coordinates fall into two tight clusters (the two indexing choices), the R<sub>ij</sub> histogram is bimodal, and the unit cell plots show how tightly the twelve cells agree:
+
+![Cosym plots](./images/cow-cosym-plots.png)
+
+After deriving the symmetry the data can be placed onto a common scale with `dials.scale`: this adjusts the scale factors to accomodate:
 
 - variation in illuminated volume / beam intensity
 - sample decay as modelled by a temperature factor
 - sample absorption (though not in this case as the sweeps are narrow)
 
-This is the first point where we can really assess the quality and completeness of the data, and the resolution of diffraction. The initial scaling is performed with:
+This is the first point where we can really assess the quality and completeness of the data, and the resolution of diffraction. The initial scaling is **9. Scale** with everything left at the defaults - the inputs are `symmetrized.expt` / `symmetrized.refl`, **Cluster to scale** stays on `(none - use inputs above)`, and **anomalous** is unticked:
+
+![Scale setup](./images/cow-scale-setup.png)
+
+Click **Run dials.scale**. This will produce a _lot_ of output then:
 
 ```
-dials.scale symmetrized.expt symmetrized.refl
+Resolution limit suggested from CC½ fit (limit CC½=0.3): 1.27
 ```
 
-This will produce a _lot_ of output then:
+![Scale output](./images/cow-scale-output.png)
 
-```
-Resolution limit suggested from CC½ fit (limit CC½=0.3): 1.26
-```
+(The original command-line tutorial got 1.26 here; small differences like this between DIALS versions are normal and make no difference to the outcome.) At this point it is up to the user to decide the resolution of the data to keep, but at this stage we have no more insight than this, so type `1.27` into the **d_min** field and run the step again - the command becomes `dials.scale symmetrized.expt symmetrized.refl d_min=1.27`:
 
-At this point it is up to the user to decide the resolution of the data to keep, but at this stage we have no more insight than this, so
+![Scale with d_min](./images/cow-scale-dmin-setup.png)
 
-```
-dials.scale symmetrized.expt symmetrized.refl d_min=1.26
-```
-
-is a rational action. This gives the table of merging statistics but more importantly a long log file in HTML format with useful graphs. The "table 1" is included at the end which usually gives a good indication of data quality:
+is a rational action. This gives the table of merging statistics (the numbers below are those at the suggested 1.27 Å limit) but more importantly a long log file in HTML format with useful graphs - click **Open HTML in web browser** to see `dials.scale.html`. The "table 1" is included at the end which usually gives a good indication of data quality:
 
 ```
                                              Overall    Low     High
-High resolution limit                           1.26    3.42    1.26
-Low resolution limit                           55.06   55.11    1.28
+High resolution limit                           1.27    3.44    1.27
+Low resolution limit                           55.05   55.10    1.29
 Completeness                                  100.0   100.0   100.0
-Multiplicity                                   12.8    12.3    10.9
-I/sigma                                        12.5    64.2     0.4
-Rmerge(I)                                     0.082   0.047   2.445
-Rmerge(I+/-)                                  0.079   0.045   2.337
-Rmeas(I)                                      0.086   0.049   2.566
-Rmeas(I+/-)                                   0.086   0.048   2.580
-Rpim(I)                                       0.024   0.014   0.765
-Rpim(I+/-)                                    0.033   0.018   1.066
-CC half                                       0.999   0.999   0.320
-Anomalous completeness                         99.9    99.9    98.6
-Anomalous multiplicity                          6.6     6.8     5.6
-Anomalous correlation                         0.060   0.140  -0.057
-Anomalous slope                               0.436
-dF/F                                          0.051
-dI/s(dI)                                      0.595
-Total observations                           272777   14068   11963
-Total unique                                  21392    1142    1100
+Multiplicity                                   12.9    12.5    11.2
+I/sigma                                        12.5    62.5     0.4
+Rmerge(I)                                     0.084   0.047   2.476
+Rmerge(I+/-)                                  0.080   0.045   2.351
+Rmeas(I)                                      0.087   0.049   2.595
+Rmeas(I+/-)                                   0.087   0.049   2.586
+Rpim(I)                                       0.024   0.014   0.762
+Rpim(I+/-)                                    0.033   0.019   1.052
+CC half                                       0.999   0.999   0.286
+Anomalous completeness                         99.9    99.9    99.3
+Anomalous multiplicity                          6.7     6.8     5.8
+Anomalous correlation                         0.042   0.118  -0.043
+Anomalous slope                               0.450
+dF/F                                          0.052
+dI/s(dI)                                      0.607
+Total observations                           271586   13934   11871
+Total unique                                  20987    1118    1059
 ```
 
 ## Isomorphism and Clustering
 
-In the processing so far, we have assumed that the data are isomorphous i.e. merge together well but we have not _tested_ this hypothesis. DIALS now has a tool (`dials.correlation_matrix`) to measure the similarity of data sets and cluster isomorphous ones. In this case
+In the processing so far, we have assumed that the data are isomorphous i.e. merge together well but we have not _tested_ this hypothesis. DIALS now has a tool (`dials.correlation_matrix`) to measure the similarity of data sets and cluster isomorphous ones. In the GUI this is **8c. Correlation Matrix (multi-crystal)**: by default it runs on `symmetrized.expt` / `symmetrized.refl`, _or_ you can tick **use scaled data** to run it on `scaled.expt` / `scaled.refl` instead. The **output clusters** box (ticked by default) adds `significant_clusters.output=True` so that any clusters found are written out as separate files.
 
-```
-dials.correlation_matrix symmetrized.expt symmetrized.refl
-```
+![Correlation matrix setup](./images/cow-correlation-matrix-setup.png)
 
-_or_
-
-```
-dials.correlation_matrix scaled.expt scaled.refl
-```
-
-will classify the data into one cluster with no outliers, which aligns well with the preconceptions exposed above. The program may take either scaled data, which may be biased but will show clearer clusters, or unscaled data which is less biased but may be more "fuzzy" - you may find you get a clearer signal one way or the other.
+Click **Run dials.correlation_matrix (optional)**. This will classify the data into one cluster with no outliers, which aligns well with the preconceptions exposed above. The program may take either scaled data, which may be biased but will show clearer clusters, or unscaled data which is less biased but may be more "fuzzy" - you may find you get a clearer signal one way or the other.
 
 ```
 Evaluating Significant Clusters from Cosine-Angle Coordinates:
@@ -367,19 +336,17 @@ For separated clusters in DIALS .expt/.refl output please re-run with significan
 Saving graphical output of correlation matrices to dials.correlation_matrix.html.
 ```
 
-here it is well worth looking at the HTML output. We have no need to split the data are there _is_ only one cluster and no outliers, so we did the right thing above just scaling the data. However it is not always that way.
+Here it is well worth looking at the HTML output (**Open HTML in web browser**), or the **Plots** tab, which shows the correlation and cos(angle) matrices, the OPTICS reachability plot and the cosym coordinates. With only cows in the mix every data set correlates with every other at better than 0.96, so the matrices are a uniform block and OPTICS finds a single cluster - keep this picture in mind for comparison with the second half:
+
+![Correlation matrix plots](./images/cow-correlation-matrix-plots.png)
+
+We have no need to split the data as there _is_ only one cluster and no outliers, so we did the right thing above just scaling the data. However it is not always that way.
 
 ## Cows, Pigs and People
 
 Now, let's re-do all the above steps but this time with a mixture of data sets: 12 each from human, bovine and porcine insulin. On a coarse scale they are isomorphous, but obviously deviate from one another at the scale of individual residues: this split is small enough that we could accidentally merge the data from all crystals if we were not careful: let's be careful. But first, let's be ignorant and see how that works out!
 
-Going back to the instructions above, we carefully imported just the `CIX` data with:
-
-```
-dials.import ../data/CIX*gz
-```
-
-This time around, we will be importing _all_ the data and proceeding as before as far as the `dials.cosym` step - but using the DIALS Workflow GUI rather than typing the commands. Launch the GUI and set the **Working directory** to a fresh, empty directory (here `CCP_GUI`) so the new run does not overwrite the cows-only processing. The steps are the same six programs as before; the command the GUI is about to run is always shown in blue, so you can compare with the command-line version at every stage.
+Going back to the instructions above, we carefully imported just the `CIX` data (selecting only the `CIX*.cbf.gz` files in the Import file dialog, i.e. `dials.import ../data/CIX*gz`). This time around, we will be importing _all_ the data and proceeding as before as far as the `dials.cosym` step - but using the DIALS Workflow GUI rather than typing the commands. Launch the GUI and set the **Working directory** to a fresh, empty directory (here `CCP_GUI`) so the new run does not overwrite the cows-only processing. The steps are the same six programs as before; the command the GUI is about to run is always shown in blue, so you can compare with the command-line version at every stage.
 
 ### Import
 
